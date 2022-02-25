@@ -1821,12 +1821,8 @@ define apache::vhost (
   $override                                                                         = ['None'],
   $directoryindex                                                                   = '',
   $vhost_name                                                                       = '*',
-<<<<<<< HEAD
   $logroot                                                                          = $apache::logroot,
-=======
-  Boolean $vhost_enable                                                              = true,
-  $logroot                                                                          = $::apache::logroot,
->>>>>>> Allow to disable a virtual host
+  Boolean $vhost_enable                                                             = true,
   Enum['directory', 'absent'] $logroot_ensure                                       = 'directory',
   $logroot_mode                                                                     = undef,
   $logroot_owner                                                                    = undef,
