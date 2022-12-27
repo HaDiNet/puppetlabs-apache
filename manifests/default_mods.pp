@@ -3,30 +3,23 @@
 #
 # @api private
 class apache::default_mods (
-  $all            = true,
-  $mods           = undef,
-  $apache_version = $apache::apache_version,
-  $use_systemd    = $apache::use_systemd,
+  Boolean $all                                   = true,
+  Optional[Variant[Array[String], String]] $mods = undef,
+  Boolean $use_systemd                           = $apache::use_systemd,
 ) {
   # These are modules required to run the default configuration.
   # They are not configurable at this time, so we just include
   # them to make sure it works.
-  case $::osfamily {
+  case $facts['os']['family'] {
     'redhat': {
       ::apache::mod { 'log_config': }
-      if versioncmp($apache_version, '2.4') >= 0 {
-        # Lets fork it
-        # Do not try to load mod_systemd on RHEL/CentOS 6 SCL.
-        if ( !($::osfamily == 'redhat' and versioncmp($::operatingsystemmajrelease, '7') == -1) and !($::operatingsystem == 'Amazon') ) {
-          if ($use_systemd) {
-            ::apache::mod { 'systemd': }
-          }
-        }
-        if ($::operatingsystem == 'Amazon' and $::operatingsystemrelease == '2') {
-          ::apache::mod { 'systemd': }
-        }
-        ::apache::mod { 'unixd': }
+      if $facts['os']['name'] != 'Amazon' and $use_systemd {
+        ::apache::mod { 'systemd': }
       }
+      if ($facts['os']['name'] == 'Amazon' and $facts['os']['release']['full'] == '2') {
+        ::apache::mod { 'systemd': }
+      }
+      ::apache::mod { 'unixd': }
     }
     'freebsd': {
       ::apache::mod { 'log_config': }
@@ -37,7 +30,7 @@ class apache::default_mods (
     }
     default: {}
   }
-  case $::osfamily {
+  case $facts['os']['family'] {
     'gentoo': {}
     default: {
       ::apache::mod { 'authz_host': }
@@ -45,13 +38,10 @@ class apache::default_mods (
   }
   # The rest of the modules only get loaded if we want all modules enabled
   if $all {
-    case $::osfamily {
+    case $facts['os']['family'] {
       'debian': {
         include apache::mod::authn_core
         include apache::mod::reqtimeout
-        if versioncmp($apache_version, '2.4') < 0 {
-          ::apache::mod { 'authn_alias': }
-        }
       }
       'redhat': {
         include apache::mod::actions
@@ -63,7 +53,6 @@ class apache::default_mods (
         include apache::mod::rewrite
         include apache::mod::speling
         include apache::mod::suexec
-        include apache::mod::version
         include apache::mod::vhost_alias
         ::apache::mod { 'auth_digest': }
         ::apache::mod { 'authn_anon': }
@@ -75,11 +64,6 @@ class apache::default_mods (
         ::apache::mod { 'logio': }
         ::apache::mod { 'substitute': }
         ::apache::mod { 'usertrack': }
-
-        if versioncmp($apache_version, '2.4') < 0 {
-          ::apache::mod { 'authn_alias': }
-          ::apache::mod { 'authn_default': }
-        }
       }
       'freebsd': {
         include apache::mod::actions
@@ -92,7 +76,6 @@ class apache::default_mods (
         include apache::mod::reqtimeout
         include apache::mod::rewrite
         include apache::mod::userdir
-        include apache::mod::version
         include apache::mod::vhost_alias
         include apache::mod::speling
         include apache::mod::filter
@@ -139,48 +122,39 @@ class apache::default_mods (
     include apache::mod::mime
     include apache::mod::negotiation
     include apache::mod::setenvif
-    ::apache::mod { 'auth_basic': }
+    include apache::mod::auth_basic
 
-    if versioncmp($apache_version, '2.4') >= 0 {
-      # filter is needed by mod_deflate
-      include apache::mod::filter
+    # filter is needed by mod_deflate
+    include apache::mod::filter
 
-      # authz_core is needed for 'Require' directive
-      ::apache::mod { 'authz_core':
-        id => 'authz_core_module',
-      }
-
-      # lots of stuff seems to break without access_compat
-      ::apache::mod { 'access_compat': }
-    } else {
-      include apache::mod::authz_default
+    # authz_core is needed for 'Require' directive
+    ::apache::mod { 'authz_core':
+      id => 'authz_core_module',
     }
 
-    include apache::mod::authz_user
+    # lots of stuff seems to break without access_compat
+    ::apache::mod { 'access_compat': }
 
-    ::apache::mod { 'authz_groupfile': }
+    include apache::mod::authz_user
+    include apache::mod::authz_groupfile
     include apache::mod::env
   } elsif $mods {
     ::apache::default_mods::load { $mods: }
 
-    if versioncmp($apache_version, '2.4') >= 0 {
-      # authz_core is needed for 'Require' directive
-      ::apache::mod { 'authz_core':
-        id => 'authz_core_module',
-      }
-
-      # filter is needed by mod_deflate
-      include apache::mod::filter
+    # authz_core is needed for 'Require' directive
+    ::apache::mod { 'authz_core':
+      id => 'authz_core_module',
     }
+
+    # filter is needed by mod_deflate
+    include apache::mod::filter
   } else {
-    if versioncmp($apache_version, '2.4') >= 0 {
-      # authz_core is needed for 'Require' directive
-      ::apache::mod { 'authz_core':
-        id => 'authz_core_module',
-      }
-
-      # filter is needed by mod_deflate
-      include apache::mod::filter
+    # authz_core is needed for 'Require' directive
+    ::apache::mod { 'authz_core':
+      id => 'authz_core_module',
     }
+
+    # filter is needed by mod_deflate
+    include apache::mod::filter
   }
 }

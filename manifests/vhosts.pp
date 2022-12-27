@@ -9,7 +9,7 @@
 #     vhosts => {
 #       'custom_vhost_1' => {
 #         'docroot' => '/var/www/custom_vhost_1',
-#         'port'    => '81',
+#         'port'    => 81,
 #       },
 #     },
 #   }
@@ -19,7 +19,7 @@
 #   `apache::vhost` defined type's parameters.
 #
 class apache::vhosts (
-  $vhosts = {},
+  Hash $vhosts = {},
 ) {
   include apache
   create_resources('apache::vhost', $vhosts)

@@ -4,31 +4,22 @@
 # @param manager
 #   Toggle whether to enable balancer manager support.
 #
-# @param maanger_path
+# @param manager_path
 #   Server relative path to balancer manager.
 #
 # @param allow_from
 #   List of IPs from which the balancer manager can be accessed.
 #
-# @param apache_version
-#   Version of Apache to install module on.
-# 
 # @see https://httpd.apache.org/docs/current/mod/mod_proxy_balancer.html for additional documentation.
 #
 class apache::mod::proxy_balancer (
-  Boolean $manager                   = false,
-  Stdlib::Absolutepath $manager_path = '/balancer-manager',
-  Array $allow_from                  = ['127.0.0.1','::1'],
-  $apache_version                    = $apache::apache_version,
+  Boolean $manager                       = false,
+  Stdlib::Unixpath $manager_path         = '/balancer-manager',
+  Array[Stdlib::IP::Address] $allow_from = ['127.0.0.1', '::1'],
 ) {
-  include apache::mod::proxy
-  include apache::mod::proxy_http
-  if versioncmp($apache_version, '2.4') >= 0 {
-    ::apache::mod { 'slotmem_shm': }
-  }
-
-  Class['::apache::mod::proxy'] -> Class['::apache::mod::proxy_balancer']
-  Class['::apache::mod::proxy_http'] -> Class['::apache::mod::proxy_balancer']
+  require apache::mod::proxy
+  require apache::mod::proxy_http
+  ::apache::mod { 'slotmem_shm': }
   ::apache::mod { 'proxy_balancer': }
   if $manager {
     include apache::mod::status

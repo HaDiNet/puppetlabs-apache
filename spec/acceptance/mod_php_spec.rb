@@ -11,7 +11,7 @@ describe 'apache::mod::php class', if: mod_supported_on_platform?('apache::mod::
         }
         class { 'apache::mod::php': }
         apache::vhost { 'php.example.com':
-          port    => '80',
+          port    => 80,
           docroot => '#{apache_hash['doc_root']}/php',
         }
         host { 'php.example.com': ip => '127.0.0.1', }
@@ -24,8 +24,7 @@ describe 'apache::mod::php class', if: mod_supported_on_platform?('apache::mod::
       apply_manifest(pp, catch_failures: true)
     end
 
-    if (os[:family] == 'ubuntu' && os[:release] == '16.04') ||
-       (os[:family] == 'debian' && os[:release] =~ %r{^9\.})
+    if os[:family] == 'debian' && os[:release] =~ %r{^9\.}
       describe file("#{apache_hash['mod_dir']}/php7.0.conf") do
         it { is_expected.to contain 'DirectoryIndex index.php' }
       end
@@ -45,7 +44,11 @@ describe 'apache::mod::php class', if: mod_supported_on_platform?('apache::mod::
       describe file("#{apache_hash['mod_dir']}/php7.4.conf") do
         it { is_expected.to contain 'DirectoryIndex index.php' }
       end
-    elsif os[:family] == 'redhat' && os[:release] =~ %r{^8\.}
+    elsif os[:family] == 'ubuntu' && os[:release] == '22.04'
+      describe file("#{apache_hash['mod_dir']}/php8.1.conf") do
+        it { is_expected.to contain 'DirectoryIndex index.php' }
+      end
+    elsif os[:family] == 'redhat' && os[:release] =~ %r{^(8)\b}
       describe file("#{apache_hash['mod_dir']}/php7.conf") do
         it { is_expected.to contain 'DirectoryIndex index.php' }
       end
@@ -65,12 +68,12 @@ describe 'apache::mod::php class', if: mod_supported_on_platform?('apache::mod::
         class { 'apache':
           mpm_module => 'prefork',
         }
-         class { 'apache::mod::php':
-         extensions => ['.php','.php5'],
-       }
+        class { 'apache::mod::php':
+        extensions => ['.php','.php5'],
+      }
 
         apache::vhost { 'php.example.com':
-          port             => '80',
+          port             => 80,
           docroot          => '#{apache_hash['doc_root']}/php',
           php_values       => { 'include_path' => '.:/usr/share/pear:/usr/bin/php', },
           php_flags        => { 'display_errors' => 'on', },

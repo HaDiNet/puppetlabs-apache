@@ -19,19 +19,13 @@ describe 'apache::mod::proxy_html', type: :class do
     include_examples 'Debian 11'
 
     context 'on i386' do
-      let(:facts) do
-        super().merge(hardwaremodel: 'i686',
-                      architecture: 'i386')
-      end
+      let(:facts) { override_facts(super(), os: { hardware: 'i386' }) }
 
       it { is_expected.to contain_apache__mod('xml2enc').with(loadfiles: nil) }
       it_behaves_like 'debian', ['/usr/lib/i386-linux-gnu/libxml2.so.2']
     end
     context 'on x64' do
-      let(:facts) do
-        super().merge(hardwaremodel: 'x86_64',
-                      architecture: 'amd64')
-      end
+      let(:facts) { override_facts(super(), os: { architecture: 'x86_64' }) }
 
       it { is_expected.to contain_apache__mod('xml2enc').with(loadfiles: nil) }
       it_behaves_like 'debian', ['/usr/lib/x86_64-linux-gnu/libxml2.so.2']
@@ -39,7 +33,7 @@ describe 'apache::mod::proxy_html', type: :class do
   end
 
   context 'on a RedHat OS', :compile do
-    include_examples 'RedHat 6'
+    include_examples 'RedHat 8'
 
     it { is_expected.to contain_class('apache::params') }
     it { is_expected.to contain_apache__mod('proxy_html').with(loadfiles: nil) }
@@ -52,7 +46,6 @@ describe 'apache::mod::proxy_html', type: :class do
     it { is_expected.to contain_class('apache::params') }
     it { is_expected.to contain_apache__mod('proxy_html').with(loadfiles: nil) }
     it { is_expected.to contain_apache__mod('xml2enc').with(loadfiles: nil) }
-    it { is_expected.to contain_package('www/mod_proxy_html') }
   end
   context 'on a Gentoo OS', :compile do
     include_examples 'Gentoo'

@@ -1,25 +1,43 @@
 # @summary
 #   Installs `mod_peruser`.
 # 
-# @todo
-#   Add docs
+# @param minspareprocessors
+# 
+# @param minprocessors
+#   The minimum amount of processors
+# 
+# @param maxprocessors
+#   The maximum amount of processors
+# 
+# @param maxclients
+#   The maximum amount of clients
+# 
+# @param maxrequestsperchild
+#   The maximum amount of requests per child
+# 
+# @param idletimeout
+# 
+# @param expiretimeout
+# 
+# @param keepalive
+# 
 class apache::mod::peruser (
-  $minspareprocessors = '2',
-  $minprocessors = '2',
-  $maxprocessors = '10',
-  $maxclients = '150',
-  $maxrequestsperchild = '1000',
-  $idletimeout = '120',
-  $expiretimeout = '120',
-  $keepalive = 'Off',
+  Integer $minspareprocessors  = 2,
+  Integer $minprocessors       = 2,
+  Integer $maxprocessors       = 10,
+  Integer $maxclients          = 150,
+  Integer $maxrequestsperchild = 1000,
+  Integer $idletimeout         = 120,
+  Integer $expiretimeout       = 120,
+  Enum['On', 'Off'] $keepalive = 'Off',
 ) {
   include apache
-  case $::osfamily {
+  case $facts['os']['family'] {
     'freebsd' : {
-      fail("Unsupported osfamily ${::osfamily}")
+      fail("Unsupported osfamily ${$facts['os']['family']}")
     }
     default: {
-      if $::osfamily == 'gentoo' {
+      if $facts['os']['family'] == 'gentoo' {
         ::portage::makeconf { 'apache2_mpms':
           content => 'peruser',
         }
