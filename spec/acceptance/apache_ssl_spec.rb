@@ -23,8 +23,10 @@ describe 'apache ssl' do
 
     describe file("#{apache_hash['mod_ssl_dir']}/ssl.conf") do
       it { is_expected.to be_file }
-      if os[:family].include?('redhat') && os[:release].to_i == 8
-        it { is_expected.to contain 'SSLProtocol all' }
+      if os[:family].include?('redhat') && os[:release].to_i >= 8
+        it { is_expected.not_to contain 'SSLProtocol' }
+      elsif ['debian', 'ubuntu'].include?(os[:family])
+        it { is_expected.to contain 'SSLProtocol all -SSLv3' }
       else
         it { is_expected.to contain 'SSLProtocol all -SSLv2 -SSLv3' }
       end
@@ -79,7 +81,7 @@ describe 'apache ssl' do
           ssl_cipher           => 'test',
           ssl_honorcipherorder => true,
           ssl_verify_client    => 'require',
-          ssl_verify_depth     => 'test',
+          ssl_verify_depth     => 1,
           ssl_options          => ['test', 'test1'],
           ssl_proxyengine      => true,
           ssl_proxy_protocol   => 'TLSv1.2',
@@ -103,7 +105,7 @@ describe 'apache ssl' do
       it { is_expected.to contain 'SSLCipherSuite          test' }
       it { is_expected.to contain 'SSLHonorCipherOrder     On' }
       it { is_expected.to contain 'SSLVerifyClient         require' }
-      it { is_expected.to contain 'SSLVerifyDepth          test' }
+      it { is_expected.to contain 'SSLVerifyDepth          1' }
       it { is_expected.to contain 'SSLOptions test test1' }
       if apache_hash['version'] == '2.4'
         it { is_expected.to contain 'SSLCARevocationCheck    chain flag' }

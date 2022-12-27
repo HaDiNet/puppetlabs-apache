@@ -16,11 +16,6 @@
 #   responses to URLs containing '\' and '/' characters. If not specified, this parameter omits 
 #   the declaration from the server's configuration and uses Apache's default setting of 'off'.
 #
-# @param apache_version
-#   Configures module template behavior, package names, and default Apache modules by defining 
-#   the version of Apache to use. We do not recommend manually configuring this parameter 
-#   without reason.
-#
 # @param conf_dir
 #   Sets the directory where the Apache server's main configuration file is located.
 #
@@ -48,7 +43,7 @@
 #   on your operating system, and you can declare any other modules separately using the 
 #   `apache::mod::<MODULE NAME>` class or `apache::mod` defined type.<br />
 #   If `true`, Puppet installs additional modules, depending on the operating system and 
-#   the values of `apache_version` and `mpm_module` parameters. Because these lists of 
+#   the value of the `mpm_module` parameter. Because these lists of 
 #   modules can change frequently, consult the Puppet module's code for up-to-date lists.<br />
 #   If this parameter contains an array, Puppet instead enables all passed Apache modules.
 #
@@ -307,11 +302,6 @@
 #   Setting `purge_vhost_dir` to `false` is a stopgap measure to allow the apache module to 
 #   coexist with existing or otherwise unmanaged configurations within `vhost_dir`.
 #
-# @param rewrite_lock
-#   Allows setting a custom location for a rewrite lock - considered best practice if using 
-#   a RewriteMap of type prg in the `rewrites` parameter of your virtual host. This parameter 
-#   only applies to Apache version 2.2 or lower and is ignored on newer versions.
-#
 # @param sendfile
 #   Forces Apache to use the Linux kernel's `sendfile` support to serve static files, via the 
 #   `EnableSendfile` directive.
@@ -428,19 +418,25 @@
 #   The `limitreqfieldsize` parameter sets the maximum ammount of _bytes_ that will
 #   be allowed within a request header.
 #
+# @param limitreqline
+#   The 'limitreqline' parameter sets the limit on the allowed size of a client's HTTP request-line
+#
 # @param ip
 #   Specifies the ip address
 #
 # @param purge_vdir
 #   Removes all other Apache configs and virtual hosts.<br />
-#   > **Note**: This parameter is deprecated in favor of the `purge_config` parameter.<br />
+#   > **Note**: This parameter is deprecated in favor of the `purge_configs` parameter.<br />
 # 
 # @param conf_enabled
 #   Whether the additional config files in `/etc/apache2/conf-enabled` should be managed.
 # 
 # @param vhost_enable_dir
-#   Set's whether the vhost definitions will be stored in sites-availible and if
+#   Set's the vhost definitions which will be stored in sites-availible and if
 #   they will be symlinked to and from sites-enabled.
+# 
+# @param manage_vhost_enable_dir
+#   Overides the vhost_enable_dir inherited parameters and allows it to be disabled
 #
 # @param mod_enable_dir
 #   Set's whether the mods-enabled directory should be managed.
@@ -461,101 +457,95 @@
 #   Specifies any idditional Internet media (mime) types that you wish to be configured.
 # 
 class apache (
-  $apache_name                                                          = $apache::params::apache_name,
-  $service_name                                                         = $apache::params::service_name,
-  $default_mods                                                         = true,
-  Boolean $default_vhost                                                = true,
-  $default_charset                                                      = undef,
-  Boolean $default_confd_files                                          = true,
-  Boolean $default_ssl_vhost                                            = false,
-  $default_ssl_cert                                                     = $apache::params::default_ssl_cert,
-  $default_ssl_key                                                      = $apache::params::default_ssl_key,
-  $default_ssl_chain                                                    = undef,
-  $default_ssl_ca                                                       = undef,
-  $default_ssl_crl_path                                                 = undef,
-  $default_ssl_crl                                                      = undef,
-  $default_ssl_crl_check                                                = undef,
-  Boolean $default_ssl_reload_on_change                                 = false,
-  $default_type                                                         = 'none',
-  $dev_packages                                                         = $apache::params::dev_packages,
-  $ip                                                                   = undef,
-  Boolean $service_enable                                               = true,
-  Boolean $service_manage                                               = true,
-  $service_ensure                                                       = 'running',
-  $service_restart                                                      = undef,
-  $purge_configs                                                        = true,
-  $purge_vhost_dir                                                      = undef,
-  $purge_vdir                                                           = false,
-  $serveradmin                                                          = 'root@localhost',
-  Enum['On', 'Off', 'on', 'off'] $sendfile                              = 'On',
-  $ldap_verify_server_cert                                              = undef,
-  $ldap_trusted_mode                                                    = undef,
-  $error_documents                                                      = false,
-  $timeout                                                              = '60',
-  $httpd_dir                                                            = $apache::params::httpd_dir,
-  $server_root                                                          = $apache::params::server_root,
-  $conf_dir                                                             = $apache::params::conf_dir,
-  $confd_dir                                                            = $apache::params::confd_dir,
-  Enum['Off', 'On', 'Double', 'off', 'on', 'double'] $hostname_lookups  = $apache::params::hostname_lookups,
-  $conf_enabled                                                         = $apache::params::conf_enabled,
-  $vhost_dir                                                            = $apache::params::vhost_dir,
-  $vhost_enable_dir                                                     = $apache::params::vhost_enable_dir,
-  $mod_libs                                                             = $apache::params::mod_libs,
-  $mod_packages                                                         = $apache::params::mod_packages,
-  $vhost_include_pattern                                                = $apache::params::vhost_include_pattern,
-  $mod_dir                                                              = $apache::params::mod_dir,
-  $mod_enable_dir                                                       = $apache::params::mod_enable_dir,
-  $mpm_module                                                           = $apache::params::mpm_module,
-  $lib_path                                                             = $apache::params::lib_path,
-  $conf_template                                                        = $apache::params::conf_template,
-  $servername                                                           = $apache::params::servername,
-  $pidfile                                                              = $apache::params::pidfile,
-  Optional[Stdlib::Absolutepath] $rewrite_lock                          = undef,
-  Boolean $manage_user                                                  = true,
-  Boolean $manage_group                                                 = true,
-  $user                                                                 = $apache::params::user,
-  $group                                                                = $apache::params::group,
-  $http_protocol_options                                                = $apache::params::http_protocol_options,
-  $supplementary_groups                                                 = [],
-  $keepalive                                                            = $apache::params::keepalive,
-  $keepalive_timeout                                                    = $apache::params::keepalive_timeout,
-  $max_keepalive_requests                                               = $apache::params::max_keepalive_requests,
-  $limitreqfieldsize                                                    = '8190',
-  $limitreqfields                                                       = '100',
-  $logroot                                                              = $apache::params::logroot,
-  $logroot_mode                                                         = $apache::params::logroot_mode,
-  Apache::LogLevel $log_level                                           = $apache::params::log_level,
-  $log_formats                                                          = {},
-  $ssl_file                                                             = undef,
-  $ports_file                                                           = $apache::params::ports_file,
-  $docroot                                                              = $apache::params::docroot,
-  $apache_version                                                       = $apache::version::default,
-  $server_tokens                                                        = 'Prod',
-  $server_signature                                                     = 'On',
-  $trace_enable                                                         = 'On',
-  Optional[Enum['on', 'off', 'nodecode']] $allow_encoded_slashes        = undef,
-  $file_e_tag                                                           = undef,
-  Optional[Enum['On', 'on', 'Off', 'off', 'DNS', 'dns']]
-  $use_canonical_name                                          = undef,
-  $package_ensure                                                = 'installed',
-  Boolean $use_optional_includes                                 = $apache::params::use_optional_includes,
-  $use_systemd                                                   = $apache::params::use_systemd,
-  $mime_types_additional                                         = $apache::params::mime_types_additional,
-  $file_mode                                                     = $apache::params::file_mode,
-  $root_directory_options                                        = $apache::params::root_directory_options,
-  Boolean $root_directory_secured                                = false,
-  $error_log                                                     = $apache::params::error_log,
-  $scriptalias                                                   = $apache::params::scriptalias,
-  $access_log_file                                               = $apache::params::access_log_file,
-  Array[Enum['h2', 'h2c', 'http/1.1']] $protocols                = [],
-  Optional[Boolean] $protocols_honor_order                       = undef,
-) inherits ::apache::params {
-  $valid_mpms_re = $apache_version ? {
-    '2.4'   => '(event|itk|peruser|prefork|worker)',
-    default => '(event|itk|prefork|worker)'
-  }
-
-  if $::osfamily == 'RedHat' and $facts['operatingsystemmajrelease'] == '7' {
+  String $apache_name                                                        = $apache::params::apache_name,
+  String $service_name                                                       = $apache::params::service_name,
+  Variant[Array, Boolean] $default_mods                                      = true,
+  Boolean $default_vhost                                                     = true,
+  Optional[String] $default_charset                                          = undef,
+  Boolean $default_confd_files                                               = true,
+  Boolean $default_ssl_vhost                                                 = false,
+  Stdlib::Absolutepath $default_ssl_cert                                     = $apache::params::default_ssl_cert,
+  Stdlib::Absolutepath $default_ssl_key                                      = $apache::params::default_ssl_key,
+  Optional[Stdlib::Absolutepath] $default_ssl_chain                          = undef,
+  Optional[Stdlib::Absolutepath] $default_ssl_ca                             = undef,
+  Optional[Stdlib::Absolutepath] $default_ssl_crl_path                       = undef,
+  Optional[Stdlib::Absolutepath] $default_ssl_crl                            = undef,
+  Optional[String] $default_ssl_crl_check                                    = undef,
+  Boolean $default_ssl_reload_on_change                                      = false,
+  String $default_type                                                       = 'none',
+  Optional[Variant[Array, String]] $dev_packages                             = $apache::params::dev_packages,
+  Optional[String] $ip                                                       = undef,
+  Boolean $service_enable                                                    = true,
+  Boolean $service_manage                                                    = true,
+  Variant[Stdlib::Ensure::Service, Boolean] $service_ensure                  = 'running',
+  Optional[String] $service_restart                                          = undef,
+  Boolean $purge_configs                                                     = true,
+  Optional[Boolean] $purge_vhost_dir                                         = undef,
+  Boolean $purge_vdir                                                        = false,
+  Optional[String[1]] $serveradmin                                           = undef,
+  Enum['On', 'Off', 'on', 'off'] $sendfile                                   = 'On',
+  Optional[Enum['On', 'Off', 'on', 'off']] $ldap_verify_server_cert          = undef,
+  Optional[String] $ldap_trusted_mode                                        = undef,
+  Boolean $error_documents                                                   = false,
+  Integer[0] $timeout                                                        = 60,
+  Stdlib::Absolutepath $httpd_dir                                            = $apache::params::httpd_dir,
+  Stdlib::Absolutepath $server_root                                          = $apache::params::server_root,
+  Stdlib::Absolutepath $conf_dir                                             = $apache::params::conf_dir,
+  Stdlib::Absolutepath $confd_dir                                            = $apache::params::confd_dir,
+  Enum['Off', 'On', 'Double', 'off', 'on', 'double'] $hostname_lookups       = $apache::params::hostname_lookups,
+  Optional[Stdlib::Absolutepath] $conf_enabled                               = $apache::params::conf_enabled,
+  Stdlib::Absolutepath $vhost_dir                                            = $apache::params::vhost_dir,
+  Optional[Stdlib::Absolutepath] $vhost_enable_dir                           = $apache::params::vhost_enable_dir,
+  Boolean $manage_vhost_enable_dir                                           = true,
+  Hash $mod_libs                                                             = $apache::params::mod_libs,
+  Hash $mod_packages                                                         = $apache::params::mod_packages,
+  String $vhost_include_pattern                                              = $apache::params::vhost_include_pattern,
+  Stdlib::Absolutepath $mod_dir                                              = $apache::params::mod_dir,
+  Optional[Stdlib::Absolutepath] $mod_enable_dir                             = $apache::params::mod_enable_dir,
+  Variant[Boolean, Enum['event', 'itk', 'peruser', 'prefork', 'worker']] $mpm_module = $apache::params::mpm_module,
+  String $lib_path                                                           = $apache::params::lib_path,
+  String $conf_template                                                      = $apache::params::conf_template,
+  Optional[String] $servername                                               = $apache::params::servername,
+  String $pidfile                                                            = $apache::params::pidfile,
+  Boolean $manage_user                                                       = true,
+  Boolean $manage_group                                                      = true,
+  String $user                                                               = $apache::params::user,
+  String $group                                                              = $apache::params::group,
+  Optional[String] $http_protocol_options                                    = $apache::params::http_protocol_options,
+  Array $supplementary_groups                                                = [],
+  Enum['On', 'Off'] $keepalive                                               = $apache::params::keepalive,
+  Integer $keepalive_timeout                                                 = $apache::params::keepalive_timeout,
+  Integer $max_keepalive_requests                                            = $apache::params::max_keepalive_requests,
+  Integer $limitreqfieldsize                                                 = 8190,
+  Integer $limitreqfields                                                    = 100,
+  Optional[Integer] $limitreqline                                            = undef,
+  Stdlib::Absolutepath $logroot                                              = $apache::params::logroot,
+  Optional[Stdlib::Filemode] $logroot_mode                                   = $apache::params::logroot_mode,
+  Apache::LogLevel $log_level                                                = $apache::params::log_level,
+  Hash $log_formats                                                          = {},
+  Optional[String] $ssl_file                                                 = undef,
+  Stdlib::Absolutepath $ports_file                                           = $apache::params::ports_file,
+  Stdlib::Absolutepath $docroot                                              = $apache::params::docroot,
+  Apache::ServerTokens $server_tokens                                        = 'Prod',
+  Variant[Enum['On', 'Off'], String] $server_signature                       = 'On',
+  Enum['On', 'Off', 'extended'] $trace_enable                                = 'On',
+  Optional[Enum['on', 'off', 'nodecode']] $allow_encoded_slashes             = undef,
+  Optional[String] $file_e_tag                                               = undef,
+  Optional[Enum['On', 'on', 'Off', 'off', 'DNS', 'dns']] $use_canonical_name = undef,
+  String $package_ensure                                                     = 'installed',
+  Boolean $use_optional_includes                                             = $apache::params::use_optional_includes,
+  Boolean $use_systemd                                                       = $apache::params::use_systemd,
+  Hash $mime_types_additional                                                = $apache::params::mime_types_additional,
+  Stdlib::Filemode $file_mode                                                = $apache::params::file_mode,
+  Array $root_directory_options                                              = $apache::params::root_directory_options,
+  Boolean $root_directory_secured                                            = false,
+  String $error_log                                                          = $apache::params::error_log,
+  String $scriptalias                                                        = $apache::params::scriptalias,
+  String $access_log_file                                                    = $apache::params::access_log_file,
+  Array[Enum['h2', 'h2c', 'http/1.1']] $protocols                            = [],
+  Optional[Boolean] $protocols_honor_order                                   = undef,
+) inherits apache::params {
+  if $facts['os']['family'] == 'RedHat' and $facts['os']['release']['major'] == '7' {
     # On redhat 7 the ssl.conf lives in /etc/httpd/conf.d (the confd_dir)
     # when all other module configs live in /etc/httpd/conf.modules.d (the
     # mod_dir). On all other platforms and versions, ssl.conf lives in the
@@ -571,16 +561,12 @@ class apache (
     }
   }
 
-  if $mpm_module and $mpm_module != 'false' { # lint:ignore:quoted_booleans
-    assert_type(Pattern[$valid_mpms_re], $mpm_module)
-  }
-
   # NOTE: on FreeBSD it's mpm module's responsibility to install httpd package.
   # NOTE: the same strategy may be introduced for other OSes. For this, you
   # should delete the 'if' block below and modify all MPM modules' manifests
   # such that they include apache::package class (currently event.pp, itk.pp,
   # peruser.pp, prefork.pp, worker.pp).
-  if $::osfamily != 'FreeBSD' {
+  if $facts['os']['family'] != 'FreeBSD' {
     package { 'httpd':
       ensure => $package_ensure,
       name   => $apache_name,
@@ -632,7 +618,9 @@ class apache (
     path => '/bin:/sbin:/usr/bin:/usr/sbin',
   }
 
+  $confd_command = ['mkdir', $confd_dir]
   exec { "mkdir ${confd_dir}":
+    command => $confd_command,
     creates => $confd_dir,
     require => Package['httpd'],
   }
@@ -657,7 +645,9 @@ class apache (
   }
 
   if ! defined(File[$mod_dir]) {
+    $mod_command = ['mkdir', $mod_dir]
     exec { "mkdir ${mod_dir}":
+      command => $mod_command,
       creates => $mod_dir,
       require => Package['httpd'],
     }
@@ -675,7 +665,9 @@ class apache (
 
   if $mod_enable_dir and ! defined(File[$mod_enable_dir]) {
     $mod_load_dir = $mod_enable_dir
+    $mod_enable_command = ['mkdir', $mod_enable_dir]
     exec { "mkdir ${mod_enable_dir}":
+      command => $mod_enable_command,
       creates => $mod_enable_dir,
       require => Package['httpd'],
     }
@@ -691,7 +683,9 @@ class apache (
   }
 
   if ! defined(File[$vhost_dir]) {
+    $vhost_command = ['mkdir', $vhost_dir]
     exec { "mkdir ${vhost_dir}":
+      command => $vhost_command,
       creates => $vhost_dir,
       require => Package['httpd'],
     }
@@ -704,9 +698,11 @@ class apache (
     }
   }
 
-  if $vhost_enable_dir and ! defined(File[$vhost_enable_dir]) {
+  if $vhost_enable_dir and ! defined(File[$vhost_enable_dir]) and $manage_vhost_enable_dir {
     $vhost_load_dir = $vhost_enable_dir
+    $vhost_load_command = ['mkdir', $vhost_load_dir]
     exec { "mkdir ${vhost_load_dir}":
+      command => $vhost_load_command,
       creates => $vhost_load_dir,
       require => Package['httpd'],
     }
@@ -735,22 +731,16 @@ class apache (
   }
 
   if $apache::conf_dir and $apache::params::conf_file {
-    if $::osfamily == 'gentoo' {
+    if $facts['os']['family'] == 'gentoo' {
       $error_documents_path = '/usr/share/apache2/error'
       if $default_mods =~ Array {
-        if versioncmp($apache_version, '2.4') >= 0 {
-          if defined('apache::mod::ssl') {
-            ::portage::makeconf { 'apache2_modules':
-              content => concat($default_mods, ['authz_core', 'socache_shmcb']),
-            }
-          } else {
-            ::portage::makeconf { 'apache2_modules':
-              content => concat($default_mods, 'authz_core'),
-            }
+        if defined('apache::mod::ssl') {
+          ::portage::makeconf { 'apache2_modules':
+            content => concat($default_mods, ['authz_core', 'socache_shmcb']),
           }
         } else {
           ::portage::makeconf { 'apache2_modules':
-            content => $default_mods,
+            content => concat($default_mods, 'authz_core'),
           }
         }
       }
@@ -764,7 +754,7 @@ class apache (
       }
     }
 
-    $apxs_workaround = $::osfamily ? {
+    $apxs_workaround = $facts['os']['family'] ? {
       'freebsd' => true,
       default   => false
     }
@@ -791,7 +781,6 @@ class apache (
     # - $server_tokens
     # - $server_signature
     # - $trace_enable
-    # - $rewrite_lock
     # - $root_directory_secured
     file { "${apache::conf_dir}/${apache::params::conf_file}":
       ensure  => file,
@@ -820,6 +809,10 @@ class apache (
       include "::apache::mod::${mpm_module}"
     }
 
+    if 'h2' in $protocols or 'h2c' in $protocols {
+      include apache::mod::http2
+    }
+
     $default_vhost_ensure = $default_vhost ? {
       true  => 'present',
       false => 'absent'
@@ -831,31 +824,31 @@ class apache (
 
     ::apache::vhost { 'default':
       ensure                       => $default_vhost_ensure,
-      port                         => '80',
+      port                         => 80,
       docroot                      => $docroot,
       scriptalias                  => $scriptalias,
       serveradmin                  => $serveradmin,
       access_log_file              => $access_log_file,
-      priority                     => '15',
+      priority                     => 15,
       ip                           => $ip,
       logroot_mode                 => $logroot_mode,
       manage_docroot               => $default_vhost,
       use_servername_for_filenames => true,
       use_port_for_filenames       => true,
     }
-    $ssl_access_log_file = $::osfamily ? {
+    $ssl_access_log_file = $facts['os']['family'] ? {
       'freebsd' => $access_log_file,
       default   => "ssl_${access_log_file}",
     }
     ::apache::vhost { 'default-ssl':
       ensure                       => $default_ssl_vhost_ensure,
-      port                         => '443',
+      port                         => 443,
       ssl                          => true,
       docroot                      => $docroot,
       scriptalias                  => $scriptalias,
       serveradmin                  => $serveradmin,
       access_log_file              => $ssl_access_log_file,
-      priority                     => '15',
+      priority                     => 15,
       ip                           => $ip,
       logroot_mode                 => $logroot_mode,
       manage_docroot               => $default_ssl_vhost,

@@ -1,35 +1,63 @@
 # @summary
 #   Installs `mod_php`.
-# 
-# @todo
-#   Add docs
+#
+# @param package_name
+#   The package name
+#
+# @param package_ensure
+#   Whether the package is `present` or `absent`
+#
+# @param path
+#
+# @param extensions
+#
+# @param content
+#
+# @param template
+#
+# @param source
+#
+# @param root_group
+#   UNIX group of the root user
+#
+# @param php_version
+#   The php version. This is a required parameter, but optional allows showing a clear error message
+#
+# @param libphp_prefix
+#
+# @note Unsupported platforms: RedHat: 9
 class apache::mod::php (
-  $package_name     = undef,
-  $package_ensure   = 'present',
-  $path             = undef,
-  Array $extensions = ['.php'],
-  $content          = undef,
-  $template         = 'apache/mod/php.conf.erb',
-  $source           = undef,
-  $root_group       = $apache::params::root_group,
-  $php_version      = $apache::params::php_version,
-  $libphp_prefix    = 'libphp'
+  Optional[String] $package_name = undef,
+  String $package_ensure         = 'present',
+  Optional[String] $path         = undef,
+  Array $extensions              = ['.php'],
+  Optional[String] $content      = undef,
+  String $template               = 'apache/mod/php.conf.erb',
+  Optional[String] $source       = undef,
+  Optional[String] $root_group   = $apache::params::root_group,
+  Optional[String] $php_version  = $apache::params::php_version,
+  String $libphp_prefix          = 'libphp'
 ) inherits apache::params {
+  unless $php_version {
+    fail("${facts['os']['name']} ${facts['os']['release']['major']} does not support mod_php")
+  }
+
   include apache
-  if (versioncmp($php_version, '8') < 0) {
-    $mod = "php${php_version}"
-  } else {
+  # RedHat + PHP 8 drop the major version in apache module name.
+  if ($facts['os']['family'] == 'RedHat') and (versioncmp($php_version, '8') >= 0) {
     $mod = 'php'
+  } else {
+    $mod = "php${php_version}"
   }
 
   if $apache::version::scl_httpd_version == undef and $apache::version::scl_php_version != undef {
     fail('If you define apache::version::scl_php_version, you also need to specify apache::version::scl_httpd_version')
   }
-  if defined(Class['::apache::mod::prefork']) {
-    Class['::apache::mod::prefork']->File["${mod}.conf"]
+  if defined(Class['apache::mod::prefork']) {
+    Class['apache::mod::prefork'] ->File["${mod}.conf"]
   }
-  elsif defined(Class['::apache::mod::itk']) {
-    Class['::apache::mod::itk']->File["${mod}.conf"]
+  elsif defined(Class['apache::mod::itk']) {
+    Class['apache::mod::itk'] ->File["${mod}.conf"]
   }
   else {
     fail('apache::mod::php requires apache::mod::prefork or apache::mod::itk; please enable mpm_module => \'prefork\' or mpm_module => \'itk\' on Class[\'apache\']')
@@ -65,12 +93,11 @@ class apache::mod::php (
   $_php_version_no_dot = regsubst($php_version, '\.', '')
   if $apache::version::scl_httpd_version {
     $_lib = "librh-php${_php_version_no_dot}-php${_php_major}.so"
+  } elsif ($facts['os']['family'] == 'RedHat') and (versioncmp($php_version, '8') >= 0) {
+    # RedHat + PHP 8 drop the major version in apache module name.
+    $_lib = "${libphp_prefix}.so"
   } else {
-    # Controls php version and libphp prefix
-    $_lib = $_php_major ? {
-      '8'     => "${libphp_prefix}.so",
-      default => "${libphp_prefix}${php_version}.so",
-    }
+    $_lib = "${libphp_prefix}${php_version}.so"
   }
   $_module_id = $_php_major ? {
     '5'     => 'php5_module',
@@ -78,7 +105,7 @@ class apache::mod::php (
     default => 'php_module',
   }
 
-  if $::operatingsystem == 'SLES' {
+  if $facts['os']['name'] == 'SLES' {
     ::apache::mod { $mod:
       package        => $_package_name,
       package_ensure => $package_ensure,
@@ -98,7 +125,7 @@ class apache::mod::php (
 
   include apache::mod::mime
   include apache::mod::dir
-  Class['::apache::mod::mime'] -> Class['::apache::mod::dir'] -> Class['::apache::mod::php']
+  Class['apache::mod::mime'] -> Class['apache::mod::dir'] -> Class['apache::mod::php']
 
   # Template uses $extensions
   file { "${mod}.conf":

@@ -43,22 +43,20 @@
 #   apache::balancer { 'puppet00': }
 #
 define apache::balancer (
-  $proxy_set = {},
-  $collect_exported = true,
-  $target = undef,
-  $options = [],
+  Hash $proxy_set = {},
+  Boolean $collect_exported = true,
+  Optional[String] $target = undef,
+  Array[Pattern[/=/]] $options = [],
 ) {
   include apache::mod::proxy_balancer
 
-  if versioncmp($apache::mod::proxy_balancer::apache_version, '2.4') >= 0 {
-    $lbmethod = $proxy_set['lbmethod'] ? {
-      undef   => 'byrequests',
-      default => $proxy_set['lbmethod'],
-    }
-    ensure_resource('apache::mod', "lbmethod_${lbmethod}", {
-        'loadfile_name' => "proxy_balancer_lbmethod_${lbmethod}.load"
-    })
+  $lbmethod = $proxy_set['lbmethod'] ? {
+    undef   => 'byrequests',
+    default => $proxy_set['lbmethod'],
   }
+  ensure_resource('apache::mod', "lbmethod_${lbmethod}", {
+      'loadfile_name' => "proxy_balancer_lbmethod_${lbmethod}.load"
+  })
 
   if $target {
     $_target = $target
@@ -73,8 +71,8 @@ define apache::balancer (
   }
 
   concat { "apache_balancer_${name}":
-    owner  => '0',
-    group  => '0',
+    owner  => 0,
+    group  => 0,
     path   => $_target,
     mode   => $apache::file_mode,
     notify => Class['Apache::Service'],

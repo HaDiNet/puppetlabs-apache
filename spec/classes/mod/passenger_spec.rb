@@ -52,6 +52,7 @@ describe 'apache::mod::passenger', type: :class do
             'passenger_high_performance' => { type: 'OnOff', pass_opt: :PassengerHighPerformance },
             'passenger_instance_registry_dir' => { type: 'FullPath', pass_opt: :PassengerInstanceRegistryDir },
             'passenger_load_shell_envvars' => { type: 'OnOff', pass_opt: :PassengerLoadShellEnvvars },
+            'passenger_preload_bundler' => { type: 'Boolean', pass_opt: :PassengerPreloadBundler },
             'passenger_log_file' => { type: 'FullPath', pass_opt: :PassengerLogFile },
             'passenger_log_level' => { type: 'Integer', pass_opt: :PassengerLogLevel },
             'passenger_lve_min_uid' => { type: 'Integer', pass_opt: :PassengerLveMinUid },
@@ -134,8 +135,19 @@ describe 'apache::mod::passenger', type: :class do
                   it { is_expected.to contain_file('passenger.conf').with_content(%r{^  #{config_hash[:pass_opt]} "#{valid_value}"$}) }
                 end
               end
-            when 'URI', 'String', 'Integer'
+            when 'URI', 'String'
               valid_config_values = ['some_value_for_you']
+              valid_config_values.each do |valid_value|
+                describe "with #{puppetized_config_option} => #{valid_value}" do
+                  let :params do
+                    { puppetized_config_option.to_sym => valid_value }
+                  end
+
+                  it { is_expected.to contain_file('passenger.conf').with_content(%r{^  #{config_hash[:pass_opt]} #{valid_value}$}) }
+                end
+              end
+            when 'Integer'
+              valid_config_values = [4711]
               valid_config_values.each do |valid_value|
                 describe "with #{puppetized_config_option} => #{valid_value}" do
                   let :params do

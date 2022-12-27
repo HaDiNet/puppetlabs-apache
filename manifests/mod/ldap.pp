@@ -1,9 +1,6 @@
 # @summary
 #   Installs and configures `mod_ldap`.
 # 
-# @param apache_version
-#   Used to verify that the Apache version you have requested is compatible with the module.
-# 
 # @param package_name
 #   Specifies the custom package name.
 # 
@@ -39,34 +36,31 @@
 #     ldap_trusted_global_cert_file => '/etc/pki/tls/certs/ldap-trust.crt',
 #     ldap_trusted_global_cert_type => 'CA_DER',
 #     ldap_trusted_mode             => 'TLS',
-#     ldap_shared_cache_size        => '500000',
-#     ldap_cache_entries            => '1024',
-#     ldap_cache_ttl                => '600',
-#     ldap_opcache_entries          => '1024',
-#     ldap_opcache_ttl              => '600',
+#     ldap_shared_cache_size        => 500000,
+#     ldap_cache_entries            => 1024,
+#     ldap_cache_ttl                => 600,
+#     ldap_opcache_entries          => 1024,
+#     ldap_opcache_ttl              => 600,
 #   }
 #
 # @see https://httpd.apache.org/docs/current/mod/mod_ldap.html for additional documentation.
-# @note Unsupported platforms: CentOS: 8; RedHat: 8
+# @note Unsupported platforms: CentOS: 8; RedHat: 8, 9
 class apache::mod::ldap (
-  $apache_version                                  = undef,
-  $package_name                                    = undef,
-  $ldap_trusted_global_cert_file                   = undef,
-  Optional[String] $ldap_trusted_global_cert_type  = 'CA_BASE64',
-  $ldap_shared_cache_size                          = undef,
-  $ldap_cache_entries                              = undef,
-  $ldap_cache_ttl                                  = undef,
-  $ldap_opcache_entries                            = undef,
-  $ldap_opcache_ttl                                = undef,
-  $ldap_trusted_mode                               = undef,
-  String $ldap_path                                = '/ldap-status',
+  Optional[String] $package_name                  = undef,
+  Optional[String] $ldap_trusted_global_cert_file = undef,
+  String $ldap_trusted_global_cert_type           = 'CA_BASE64',
+  Optional[Integer] $ldap_shared_cache_size       = undef,
+  Optional[Integer] $ldap_cache_entries           = undef,
+  Optional[Integer] $ldap_cache_ttl               = undef,
+  Optional[Integer] $ldap_opcache_entries         = undef,
+  Optional[Integer] $ldap_opcache_ttl             = undef,
+  Optional[String] $ldap_trusted_mode             = undef,
+  String $ldap_path                               = '/ldap-status',
 ) {
   include apache
-  $_apache_version = pick($apache_version, $apache::apache_version)
   ::apache::mod { 'ldap':
     package => $package_name,
   }
-  # Template uses $_apache_version
   file { 'ldap.conf':
     ensure  => file,
     path    => "${apache::mod_dir}/ldap.conf",

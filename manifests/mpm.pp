@@ -2,8 +2,7 @@
 #
 # @api private
 define apache::mpm (
-  $lib_path       = $apache::lib_path,
-  $apache_version = $apache::apache_version,
+  String $lib_path                 = $apache::lib_path,
 ) {
   if ! defined(Class['apache']) {
     fail('You must include the apache base class before using any apache defined resources')
@@ -16,38 +15,34 @@ define apache::mpm (
   $_path = "${lib_path}/${_lib}"
   $_id   = "mpm_${mpm}_module"
 
-  if $::osfamily == 'Suse' {
+  if $facts['os']['family'] == 'Suse' {
     #mpms on Suse 12 don't use .so libraries so create a placeholder load file
-    if versioncmp($apache_version, '2.4') >= 0 {
-      file { "${mod_dir}/${mpm}.load":
-        ensure  => file,
-        path    => "${mod_dir}/${mpm}.load",
-        content => '',
-        require => [
-          Package['httpd'],
-          Exec["mkdir ${mod_dir}"],
-        ],
-        before  => File[$mod_dir],
-        notify  => Class['apache::service'],
-      }
+    file { "${mod_dir}/${mpm}.load":
+      ensure  => file,
+      path    => "${mod_dir}/${mpm}.load",
+      content => '',
+      require => [
+        Package['httpd'],
+        Exec["mkdir ${mod_dir}"],
+      ],
+      before  => File[$mod_dir],
+      notify  => Class['apache::service'],
     }
   } else {
-    if versioncmp($apache_version, '2.4') >= 0 {
-      file { "${mod_dir}/${mpm}.load":
-        ensure  => file,
-        path    => "${mod_dir}/${mpm}.load",
-        content => "LoadModule ${_id} ${_path}\n",
-        require => [
-          Package['httpd'],
-          Exec["mkdir ${mod_dir}"],
-        ],
-        before  => File[$mod_dir],
-        notify  => Class['apache::service'],
-      }
+    file { "${mod_dir}/${mpm}.load":
+      ensure  => file,
+      path    => "${mod_dir}/${mpm}.load",
+      content => "LoadModule ${_id} ${_path}\n",
+      require => [
+        Package['httpd'],
+        Exec["mkdir ${mod_dir}"],
+      ],
+      before  => File[$mod_dir],
+      notify  => Class['apache::service'],
     }
   }
 
-  case $::osfamily {
+  case $facts['os']['family'] {
     'debian': {
       file { "${apache::mod_enable_dir}/${mpm}.conf":
         ensure  => link,
@@ -57,37 +52,24 @@ define apache::mpm (
         notify  => Class['apache::service'],
       }
 
-      if versioncmp($apache_version, '2.4') >= 0 {
-        file { "${apache::mod_enable_dir}/${mpm}.load":
-          ensure  => link,
-          target  => "${apache::mod_dir}/${mpm}.load",
-          require => Exec["mkdir ${apache::mod_enable_dir}"],
-          before  => File[$apache::mod_enable_dir],
-          notify  => Class['apache::service'],
-        }
+      file { "${apache::mod_enable_dir}/${mpm}.load":
+        ensure  => link,
+        target  => "${apache::mod_dir}/${mpm}.load",
+        require => Exec["mkdir ${apache::mod_enable_dir}"],
+        before  => File[$apache::mod_enable_dir],
+        notify  => Class['apache::service'],
+      }
 
-        if $mpm == 'itk' {
-          file { "${lib_path}/mod_mpm_itk.so":
-            ensure  => link,
-            target  => "${lib_path}/mpm_itk.so",
-            require => Package['httpd'],
-            before  => Class['apache::service'],
-          }
-        }
-      } else {
-        package { "apache2-mpm-${mpm}":
-          ensure => present,
-          before => [
-            Class['apache::service'],
-            File[$apache::mod_enable_dir],
-          ],
+      if $mpm == 'itk' {
+        file { "${lib_path}/mod_mpm_itk.so":
+          ensure  => link,
+          target  => "${lib_path}/mpm_itk.so",
+          require => Package['httpd'],
+          before  => Class['apache::service'],
         }
       }
 
       if $mpm == 'itk' {
-        include apache::mpm::disable_mpm_event
-        include apache::mpm::disable_mpm_worker
-
         package { 'libapache2-mpm-itk':
           ensure => present,
           before => [
@@ -97,18 +79,16 @@ define apache::mpm (
         }
       }
 
-      if $mpm == 'prefork' {
-        if ( ( $::operatingsystem == 'Ubuntu' and versioncmp($::operatingsystemrelease,'18.04') >= 0 ) or $::operatingsystem == 'Debian' ) {
-          include apache::mpm::disable_mpm_event
-          include apache::mpm::disable_mpm_worker
-        }
+      unless $mpm in ['itk', 'prefork'] {
+        include apache::mpm::disable_mpm_prefork
       }
 
-      if $mpm == 'worker' {
-        if ( ( $::operatingsystem == 'Ubuntu' and versioncmp($::operatingsystemrelease,'18.04') >= 0 ) or $::operatingsystem == 'Debian' ) {
-          include apache::mpm::disable_mpm_event
-          include apache::mpm::disable_mpm_prefork
-        }
+      if $mpm != 'worker' {
+        include apache::mpm::disable_mpm_worker
+      }
+
+      if $mpm != 'event' {
+        include apache::mpm::disable_mpm_event
       }
     }
 
@@ -132,20 +112,18 @@ define apache::mpm (
         notify  => Class['apache::service'],
       }
 
-      if versioncmp($apache_version, '2.4') >= 0 {
-        file { "${apache::mod_enable_dir}/${mpm}.load":
-          ensure  => link,
-          target  => "${apache::mod_dir}/${mpm}.load",
-          require => Exec["mkdir ${apache::mod_enable_dir}"],
-          before  => File[$apache::mod_enable_dir],
-          notify  => Class['apache::service'],
-        }
+      file { "${apache::mod_enable_dir}/${mpm}.load":
+        ensure  => link,
+        target  => "${apache::mod_dir}/${mpm}.load",
+        require => Exec["mkdir ${apache::mod_enable_dir}"],
+        before  => File[$apache::mod_enable_dir],
+        notify  => Class['apache::service'],
+      }
 
-        if $mpm == 'itk' {
-          file { "${lib_path}/mod_mpm_itk.so":
-            ensure => link,
-            target => "${lib_path}/mpm_itk.so",
-          }
+      if $mpm == 'itk' {
+        file { "${lib_path}/mod_mpm_itk.so":
+          ensure => link,
+          target => "${lib_path}/mpm_itk.so",
         }
       }
 
@@ -154,7 +132,7 @@ define apache::mpm (
       }
     }
     default: {
-      fail("Unsupported osfamily ${::osfamily}")
+      fail("Unsupported osfamily ${$facts['os']['family']}")
     }
   }
 }

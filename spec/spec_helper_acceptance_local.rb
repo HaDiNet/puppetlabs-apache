@@ -33,52 +33,11 @@ RSpec.configure do |c|
     c.filter_run_excluding ipv6: true
   end
   c.before :suite do
-    # Make sure selinux is disabled so the tests work.
-    LitmusHelper.instance.run_shell('setenforce 0', expect_failures: true) if %r{redhat|oracle}.match?(os[:family])
+    if %r{redhat|oracle}.match?(os[:family])
+      LitmusHelper.instance.run_shell('puppet module install puppet/epel')
+    end
 
-    LitmusHelper.instance.run_shell('puppet module install stahnma/epel')
-    pp = <<-PUPPETCODE
-    # needed by tests
-    package { 'curl':
-      ensure   => 'latest',
-    }
-    # needed for netstat, for serverspec checks
-    if $::osfamily == 'SLES' or $::osfamily == 'SUSE' {
-      package { 'net-tools-deprecated':
-        ensure   => 'latest',
-      }
-    }
-    # needed for ss, for serverspec checks
-    if $::operatingsystem == 'Ubuntu' and $::operatingsystemmajrelease !~ /14.04|16.04/ {
-      package { 'iproute2':
-        ensure   => 'latest',
-      }
-    }
-    if $::osfamily == 'RedHat' {
-      if $::operatingsystemmajrelease == '5' or $::operatingsystemmajrelease == '6'{
-        class { 'epel':
-          epel_baseurl => "http://osmirror.delivery.puppetlabs.net/epel${::operatingsystemmajrelease}-\\$basearch/RPMS.all",
-          epel_mirrorlist => "http://osmirror.delivery.puppetlabs.net/epel${::operatingsystemmajrelease}-\\$basearch/RPMS.all",
-        }
-        } elsif $::operatingsystemmajrelease == '8' {
-          class { 'epel':
-                os_maj_release => "7",
-                epel_baseurl => "http://osmirror.delivery.puppetlabs.net/epel7-\\$basearch/RPMS.all",
-                epel_mirrorlist => "http://osmirror.delivery.puppetlabs.net/epel7-\\$basearch/RPMS.all",
-          }
-      } else {
-        class { 'epel': }
-      }
-    }
-    PUPPETCODE
-    LitmusHelper.instance.apply_manifest(pp)
-
-    # Ensure ipv6 is enabled on our Debian 11 Docker boxes
-    LitmusHelper.instance.run_shell('sysctl -w net.ipv6.conf.all.disable_ipv6=0') if %r{debian}.match?(os[:family]) && os[:release].to_f == 11
-
-    # Install iproute on AlmaLinux
-    # Package is used to check if ports are listening
-    LitmusHelper.instance.run_shell('sudo dnf install iproute -y') if %r{redhat}.match?(os[:family]) && os[:release].to_f >= 8
+    LitmusHelper.instance.apply_manifest(File.read(File.join(__dir__, 'setup_acceptance_node.pp')))
   end
 
   c.after :suite do
@@ -103,8 +62,6 @@ def apache_settings_hash
     apache['service_name']     = 'httpd'
     apache['package_name']     = 'httpd'
     apache['error_log']        = 'error_log'
-    apache['suphp_handler']    = 'php5-script'
-    apache['suphp_configpath'] = 'undef'
     if operatingsystemrelease >= 8 && osfamily == 'redhat'
       apache['version']     = '2.4'
       apache['mod_dir']     = '/etc/httpd/conf.modules.d'
@@ -135,8 +92,6 @@ def apache_settings_hash
     apache['service_name']     = 'apache2'
     apache['package_name']     = 'apache2'
     apache['error_log']        = 'error.log'
-    apache['suphp_handler']    = 'x-httpd-php'
-    apache['suphp_configpath'] = '/etc/php5/apache2'
     apache['version']          = '2.4'
     apache['mod_ssl_dir']      = apache['mod_dir']
   when 'freebsd'
@@ -152,7 +107,7 @@ def apache_settings_hash
     apache['service_name']     = 'apache24'
     apache['package_name']     = 'apache24'
     apache['error_log']        = 'http-error.log'
-    apache['version']          = '2.2'
+    apache['version']          = '2.4'
     apache['mod_ssl_dir']      = apache['mod_dir']
   when 'gentoo'
     apache['httpd_dir']        = '/etc/apache2'
