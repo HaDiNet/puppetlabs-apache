@@ -1148,6 +1148,9 @@
 #   If the virtual host has no assigned IP or port, the virtual host name is set to the 
 #   title of the resource.
 #
+# @param vhost_enable
+#   Specifies if the symlink to enable the virtual host is created or not.
+#
 # @param virtual_docroot
 #   Sets up a virtual host with a wildcard alias subdomain mapped to a directory with the 
 #   same name. For example, `http://example.com` would map to `/var/www/example.com`.
@@ -1766,6 +1769,7 @@ define apache::vhost (
   Optional[String] $directoryindex                                                    = undef,
   String $vhost_name                                                                  = '*',
   Stdlib::Absolutepath $logroot                                                       = $apache::logroot,
+  Boolean $vhost_enable                                                               = true,
   Enum['directory', 'absent'] $logroot_ensure                                         = 'directory',
   Optional[Stdlib::Filemode] $logroot_mode                                            = undef,
   Optional[String] $logroot_owner                                                     = undef,
@@ -2211,8 +2215,8 @@ define apache::vhost (
   }
   # NOTE(pabelanger): This code is duplicated in ::apache::vhost::custom and
   # needs to be converted into something generic.
-  if $apache::vhost_enable_dir {
-    $vhost_enable_dir = $apache::vhost_enable_dir
+  if $vhost_enable and $::apache::vhost_enable_dir {
+    $vhost_enable_dir = $::apache::vhost_enable_dir
     $vhost_symlink_ensure = $ensure ? {
       'present' => link,
       default => $ensure,
